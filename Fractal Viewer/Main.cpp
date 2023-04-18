@@ -247,7 +247,7 @@ HRESULT Initialize()
     RegisterClassEx(&windowclass);
 
     //rectangle size for the window client without border
-    RECT rect = { 0, 0, 1080, 1080 };
+    RECT rect = { 0, 0, 400, 400 };
     AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, false, WS_EX_OVERLAPPEDWINDOW);
     HWND windowHandle = CreateWindowEx(
         WS_EX_OVERLAPPEDWINDOW,

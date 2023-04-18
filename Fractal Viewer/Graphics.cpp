@@ -58,6 +58,12 @@ void Graphics::DrawCircle(float x, float y, float radius, float r, float g, floa
 	_renderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush, 3.0f);
 }
 
+void Graphics::DrawRect(D2D1_RECT_F r, D2D1::ColorF colour)
+{
+	_brush->SetColor(colour);
+	_renderTarget->DrawRectangle(r, _brush);
+}
+
 void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom)
 {
 	D2D1_RECT_F r;
@@ -75,6 +81,12 @@ void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom, D2D1::ColorF
 	r.left = V.x;
 	r.bottom = r.top + zoom;
 	r.right = r.left + zoom;
+	_brush->SetColor(colour);
+	_renderTarget->FillRectangle(r, _brush);
+}
+
+void Graphics::FillRect(D2D1_RECT_F r, D2D1::ColorF colour)
+{
 	_brush->SetColor(colour);
 	_renderTarget->FillRectangle(r, _brush);
 }

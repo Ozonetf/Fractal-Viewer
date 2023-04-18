@@ -17,8 +17,10 @@ public:
 	void ClearScreen(float r, float g, float b);
 	void DrawCircle(float x, float y, float radius, float r, float g, float b, float a);
 	//draws an pixel with proper scale using a zoom factor 
+	void DrawRect(D2D1_RECT_F r, D2D1::ColorF colour);
 	void FillRect(DirectX::SimpleMath::Vector2 V, float zoom);
 	void FillRect(DirectX::SimpleMath::Vector2 V, float zoom, D2D1::ColorF colour);
+	void FillRect(D2D1_RECT_F r, D2D1::ColorF colour);
 	void Resize(long width, long height);
 
 	RECT GetWinRect() { return _windowRect; };
