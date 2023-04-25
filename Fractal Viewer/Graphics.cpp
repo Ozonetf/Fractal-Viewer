@@ -18,6 +18,7 @@ Graphics::~Graphics()
 
 bool Graphics::init(HWND windowhandle)
 {
+	DPI = GetDpiForWindow(windowhandle);
 	HRESULT res = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &_factory);
 	if (res != S_OK) return false;	//if factory didnt create succesfully
 	RECT rect;

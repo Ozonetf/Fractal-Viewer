@@ -97,7 +97,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             OutputDebugString(L"Window Resized.\n");
             RECT rc;
-            GetClientRect(hwnd, &rc);
+            GetWindowRect(hwnd, &rc);
             _game->OnWindowSizeChanged(rc.right - rc.left, rc.bottom - rc.top);
         }
         break;
@@ -192,8 +192,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                     //game->GetDefaultSize(width, height);
 
                     ShowWindow(hwnd, SW_SHOWNORMAL);
-
-                SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                float dpi = GetDpiForWindow(hwnd);
+                SetWindowPos(hwnd, HWND_TOP, 0, 0, 
+                    static_cast<int>(ceil(640.f * dpi / 96.f)),
+                    static_cast<int>(ceil(480.f * dpi / 96.f)), 
+                    SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
             }
             else
             {
@@ -247,7 +250,7 @@ HRESULT Initialize()
     RegisterClassEx(&windowclass);
 
     //rectangle size for the window client without border
-    RECT rect = { 0, 0, 400, 400 };
+    RECT rect = { 0, 0, 1920, 1080 };
     AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, false, WS_EX_OVERLAPPEDWINDOW);
     HWND windowHandle = CreateWindowEx(
         WS_EX_OVERLAPPEDWINDOW,
@@ -262,7 +265,6 @@ HRESULT Initialize()
         NULL,					//window menu
         HINST_THISCOMPONENT,	//hinstance	
         0);
-
     _game = std::make_unique<Game>();
     _game->Init(windowHandle, 1920, 1080);
 

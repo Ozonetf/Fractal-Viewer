@@ -24,11 +24,12 @@ public:
 	void Resize(long width, long height);
 
 	RECT GetWinRect() { return _windowRect; };
-	long GetWinHeight() { return _windowRect.bottom; }
-	long GetWinWidth() { return _windowRect.right; }
+	long GetWinHeight() { return (_windowRect.bottom*DPI/96); }
+	long GetWinWidth() { return (_windowRect.right*DPI/96); }
 
 
 private:
+	int DPI;
 	void CreateWinSizeDepedentResources();
 	HWND _windowHandle;
 	RECT _windowRect;

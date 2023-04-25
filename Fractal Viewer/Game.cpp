@@ -162,6 +162,7 @@ void Game::OnWindowSizeChanged(long width, long height)
 {
 	PRINT_DEBUG("this resized");
 	_graphics->Resize(width, height);
+	pixels.resize(width*height);
 	//keep camera centered when resizing window
 	_cameraCoord.x = width / 2;
 	_cameraCoord.y = height / 2;
@@ -199,7 +200,7 @@ void Game::drawFractal()
 {
 	auto start = std::chrono::steady_clock::now();
 	float hue;
-	int iter = 0, d, w, h;
+	int iter = 0, w, h;
 	w = _graphics->GetWinWidth();
 	h = _graphics->GetWinHeight();
 	float halfWidth = (float)w / 2.0f;
@@ -209,9 +210,9 @@ void Game::drawFractal()
 	{
 		for (size_t j= 0; j < w; j++)
 		{
-			v.x = (float(j) - halfWidth) / (halfHeight/2);
-			v.y = (float(i) - halfHeight) / (halfHeight/2);
-			pixels.at(h * i + j) = getDepth(v);
+			v.x = (float(j) - halfWidth) / (halfHeight /2.0f);
+			v.y = (float(i) - halfHeight) / (halfHeight /2.0f);
+			pixels.at(iter) = getDepth(v);
 			iter++;
 		}
 	}
@@ -220,11 +221,12 @@ void Game::drawFractal()
 	PRINT_DEBUG("%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
 	start = std::chrono::steady_clock::now();
 	_graphics->BeginDraw();
+	iter = 0;
 	for (size_t i = 0; i < h; i++)
 	{
 		for (size_t j = 0; j < w; j++)
 		{
-			hue = (float)pixels.at(h * i + j) / (float)_bailOut;
+			hue = (float)pixels.at(iter) / (float)_bailOut;
 			_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, D2D1::ColorF(hue, 0, hue));
 			iter++;
 		}
