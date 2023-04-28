@@ -4,38 +4,31 @@
 
 Graphics::Graphics()
 {
-	_factory = NULL;
-	_renderTarget = NULL;
-	_brush = NULL;
+	_brush = nullptr;	
+	// Renders only 2D, so no need for a depth buffer.
+	_deviceResource = std::make_unique<DX::DeviceResources>(DXGI_FORMAT_B8G8R8A8_UNORM,
+		DXGI_FORMAT_UNKNOWN);
+	_deviceResource->RegisterDeviceNotify(this);
 }
 
 Graphics::~Graphics()
-{
-	if (_factory) SafeRelease(&_factory);
-	if (_renderTarget) SafeRelease(&_renderTarget);
+{	
 	if (_brush) SafeRelease(&_brush); 
 }
 
-bool Graphics::init(HWND windowhandle)
+bool Graphics::init(HWND windowhandle, long width, long height)
 {
-	HRESULT res = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &_factory);
-	if (res != S_OK) return false;	//if factory didnt create succesfully
+	SetWindow(windowhandle, width, height);
+	_deviceResource->SetWindow(windowhandle, width, height);   
+	_deviceResource->CreateDeviceIndependentResources();
+	_deviceResource->CreateDeviceResources();
+
+	_deviceResource->CreateWindowSizeDependentResources();
+	DX::ThrowIfFailed(
+		_deviceResource->GetD2DContext()->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &_brush)
+	);
 	RECT rect;
 	GetClientRect(windowhandle, &rect);
-
-	D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties();
-	//ignore the alpha chennel since we're not interested, slight optimization
-	props.pixelFormat.alphaMode = D2D1_ALPHA_MODE_IGNORE;	
-	res = _factory->CreateHwndRenderTarget(
-		props,
-		D2D1::HwndRenderTargetProperties(windowhandle, D2D1::SizeU(rect.right, rect.bottom)), 
-		&_renderTarget
-		);
-	if (res != S_OK) return false;
-
-	D2D1_ALPHA_MODE::D2D1_ALPHA_MODE_IGNORE;
-	res = _renderTarget->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &_brush);
-	if (res != S_OK) return false;
 	return true;
 }
 
@@ -49,19 +42,34 @@ void Graphics::SetWindow(HWND windowhandle, long width, long height)
 
 void Graphics::ClearScreen(float r, float g, float b)
 {
-	_renderTarget->Clear(D2D1::ColorF(r, g, b));
+	// Clear the views.
+	auto context = _deviceResource->GetD3DDeviceContext();
+	auto renderTarget = _deviceResource->GetRenderTargetView();
+
+	//----------dont need zbuffer for 2d rendering---------------
+	//auto depthStencil = _deviceResource->GetDepthStencilView();	
+	//context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+	//-----------------------------------------------------------
+
+	context->ClearRenderTargetView(renderTarget, DirectX::XMVECTORF32{r, g, b});
+	context->OMSetRenderTargets(1, &renderTarget, nullptr);
+
+	// Set the viewport.
+	auto const viewport = _deviceResource->GetScreenViewport();
+	context->RSSetViewports(1, &viewport);
 }
 
 void Graphics::DrawCircle(float x, float y, float radius, float r, float g, float b, float a)
 {
 	_brush->SetColor(D2D1::ColorF(r, g, b, a));
-	_renderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush, 3.0f);
+	_deviceResource->GetD2DContext()->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush, 3.0f);
+	//_D2D1renderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush, 3.0f);
 }
 
 void Graphics::DrawRect(D2D1_RECT_F r, D2D1::ColorF colour)
 {
 	_brush->SetColor(colour);
-	_renderTarget->DrawRectangle(r, _brush);
+	_deviceResource->GetD2DContext()->DrawRectangle(r, _brush);
 }
 
 void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom)
@@ -71,7 +79,7 @@ void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom)
 	r.left = V.x ;
 	r.bottom = r.top + zoom ;
 	r.right = r.left + zoom ;
-	_renderTarget->FillRectangle(r, _brush);
+	_deviceResource->GetD2DContext()->FillRectangle(r, _brush);
 }
 
 void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom, D2D1::ColorF colour)
@@ -82,24 +90,34 @@ void Graphics::FillRect(DirectX::SimpleMath::Vector2 V, float zoom, D2D1::ColorF
 	r.bottom = r.top + zoom;
 	r.right = r.left + zoom;
 	_brush->SetColor(colour);
-	_renderTarget->FillRectangle(r, _brush);
+	_deviceResource->GetD2DContext()->FillRectangle(r, _brush);
 }
 
 void Graphics::FillRect(D2D1_RECT_F r, D2D1::ColorF colour)
 {
 	_brush->SetColor(colour);
-	_renderTarget->FillRectangle(r, _brush);
+	_deviceResource->GetD2DContext()->FillRectangle(r, _brush);
 }
 
 void Graphics::Resize(long width, long height)
 {
+	if (!_deviceResource->WindowSizeChanged(width, height))	return;
 	_windowRect.left, _windowRect.top = 0;
 	_windowRect.right = width;
 	_windowRect.bottom = height;
-	_renderTarget->Resize(D2D1::SizeU(width, height));
+	//_D2D1renderTarget->Resize(D2D1::SizeU(width, height));
 }
 
 void Graphics::CreateWinSizeDepedentResources()
 {
-	_renderTarget->Resize(D2D1::SizeU(_windowRect.right, _windowRect.bottom));
+	_deviceResource->CreateWindowSizeDependentResources();
+	//_D2D1renderTarget->Resize(D2D1::SizeU(_windowRect.right, _windowRect.bottom));
+}
+
+void Graphics::OnDeviceLost()
+{
+}
+
+void Graphics::OnDeviceRestored()
+{
 }

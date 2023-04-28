@@ -1,16 +1,17 @@
 #include "pch.h"
 #include "Game.h"
-#include <exception>
 
 Game::Game()
 {
+
 }
 
 Game::~Game()
 {
+
 }
 
-void Game::Init(HWND windowhandle, int width, int height)
+void Game::Init(HWND windowhandle, long width, long height)
 {
 	_graphics = std::make_unique<Graphics>();
 	_timer = std::make_unique<StepTimer>();
@@ -18,15 +19,15 @@ void Game::Init(HWND windowhandle, int width, int height)
 	m_mouse = std::make_unique<DirectX::Mouse>();
 	m_mouse->SetWindow(windowhandle);
 	//sets the window handle as ther rendertarget for d2d
-	if (!_graphics->init(windowhandle))
+	if (!_graphics->init(windowhandle, width, height))
 	{
 		throw 20;
 	};
-	_cameraCoord.x = width / 2;
-	_cameraCoord.y = height / 2;	
-	_zoomRatioX = width / 48;
-	_zoomRatioY = height / 48;
-	circle_x = 0;
+	//_cameraCoord.x = width / 2;
+	//_cameraCoord.y = height / 2;	
+	//_zoomRatioX = width / 48;
+	//_zoomRatioY = height / 48;
+	//circle_x = 0;
 	pixels = std::vector<int>(width * height, 0);
 }
 
@@ -77,15 +78,16 @@ void Game::Update()
 void Game::Render()
 {
 	_graphics->BeginDraw();
-	//_graphics->ClearScreen(0.0f, 0.0f, 0.0f);
+	_graphics->ClearScreen(0, 0, 0);
 
 	//rect's right and bottom are not insclusive in fillrect, workaround to avoid gap
 	//in cells when zoomed in
 	float zoom = (_pixelScale == 1 ? 1 : _pixelScale+1);
 	//drawFractal();
-	//_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
-	_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
+	_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
+	//_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
 	_graphics->EndDraw();
+	_graphics->Present();
 }
 
 void Game::ProcessInputs()
@@ -168,11 +170,6 @@ void Game::OnWindowSizeChanged(long width, long height)
 	_zoomRatioX = width / 48;
 	_zoomRatioY = height / 48;
 	PRINT_DEBUG("x ratio: %d, y ratio: %d\n", _zoomRatioX, _zoomRatioY);
-}
-
-void Game::OnResize()
-{
-	//_graphics->Resize();
 }
 
 int Game::getDepth(DirectX::SimpleMath::Vector2 c)

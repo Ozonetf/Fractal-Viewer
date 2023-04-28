@@ -8,6 +8,9 @@ namespace
     std::unique_ptr<Game> _game;
 }
 
+LPCWSTR g_szAppName = L"Device Resource UWP example";
+LPCWSTR WINDOW_NAME = L"Fractal";
+
 void RunMessageLoop()
 {
 
@@ -233,7 +236,6 @@ HRESULT Initialize()
     OutputDebugString(L"This will go to the output.\n");
     HRESULT res;
     LPCWSTR CLASS_NAME = L"MainWindow";
-    LPCWSTR WINDOW_NAME = L"Fractal";
 
     WNDCLASSEX windowclass;
     ZeroMemory(&windowclass, sizeof(WNDCLASSEX));
@@ -249,7 +251,7 @@ HRESULT Initialize()
     //rectangle size for the window client without border
     RECT rect = { 0, 0, 400, 400 };
     AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, false, WS_EX_OVERLAPPEDWINDOW);
-    HWND windowHandle = CreateWindowEx(
+    HWND windowHandle = CreateWindowExW(
         WS_EX_OVERLAPPEDWINDOW,
         CLASS_NAME,				//window class name
         WINDOW_NAME,			//window name
@@ -264,7 +266,7 @@ HRESULT Initialize()
         0);
 
     _game = std::make_unique<Game>();
-    _game->Init(windowHandle, 1920, 1080);
+    _game->Init(windowHandle, rect.right, rect.bottom);
 
     res = windowHandle ? S_OK : E_FAIL;
     if (SUCCEEDED(res))
