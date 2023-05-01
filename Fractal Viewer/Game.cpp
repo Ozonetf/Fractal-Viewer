@@ -196,6 +196,27 @@ int Game::getDepth(DirectX::SimpleMath::Vector2 c)
 	return ret;
 }
 
+D2D1::ColorF Game::HSL2RGB(int n)
+{
+	float C, X, S, L, Hdot, H;
+	const float Lightnes  = .5f;
+	L = (1 - std::abs(2 * Lightnes - 1));
+	S = ((float)n / (float)_bailOut);
+	C = S * L;
+	H = (360.0f / (float)_bailOut) * n;
+	Hdot = (float)std::abs(std::fmod(H, 2) - 1);
+	X = C * (1 - Hdot);
+	switch (int(H)/60)
+	{
+	case 0: return D2D1::ColorF{ C, X, 0 }; break;
+	case 1: return D2D1::ColorF{ X, C, 0 }; break;
+	case 2: return D2D1::ColorF{ 0, C, X }; break;
+	case 3: return D2D1::ColorF{ 0, X, C }; break;
+	case 4: return D2D1::ColorF{ X, 0, C }; break;
+	case 5: return D2D1::ColorF{ C, 0, X }; break;
+	}
+}
+
 void Game::drawFractal()
 {
 	auto start = std::chrono::steady_clock::now();
@@ -226,8 +247,8 @@ void Game::drawFractal()
 	{
 		for (size_t j = 0; j < w; j++)
 		{
-			hue = (float)pixels.at(iter) / (float)_bailOut;
-			_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, D2D1::ColorF(hue, 0, hue));
+			hue = (float)std::abs(pixels.at(iter) - _bailOut);
+			_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, HSL2RGB(hue));
 			iter++;
 		}
 	}

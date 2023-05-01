@@ -25,6 +25,7 @@ private:
 	void ProcessInputs();
 	void drawFractal();
 	int getDepth(DirectX::SimpleMath::Vector2 c);
+	D2D1::ColorF HSL2RGB(int n);
 
 	int circle_x = 0;
 	std::unique_ptr<StepTimer> _timer;
