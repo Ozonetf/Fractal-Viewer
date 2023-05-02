@@ -410,6 +410,7 @@ void DeviceResources::CreateWindowSizeDependentResources()
 
     // Set the 3D rendering viewport to target the entire window.
     m_screenViewport = { 0.0f, 0.0f, static_cast<float>(backBufferWidth), static_cast<float>(backBufferHeight), 0.f, 1.f };
+    
     m_dpi = GetDpiForWindow(m_window);
     D2D1_BITMAP_PROPERTIES1 bitmapProperties =
         D2D1::BitmapProperties1(

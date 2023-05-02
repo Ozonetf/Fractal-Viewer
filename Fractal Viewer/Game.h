@@ -30,7 +30,7 @@ private:
 	DirectX::Keyboard::KeyboardStateTracker _kTraker;
 
 	std::queue<DirectX::SimpleMath::Vector2> _renderQueue;
-	bool curBuffer = 0;
+	bool reCalc = false;
 	bool paused = true;
 	int _zoom = 1;
 	int _scrollTemp = 0;

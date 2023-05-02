@@ -4,7 +4,10 @@ class Graphics : public DX::IDeviceNotify
 {
 	ID2D1SolidColorBrush* _brush;
 	std::unique_ptr<DX::DeviceResources> _deviceResource;
-
+	Microsoft::WRL::ComPtr<ID2D1Bitmap1> _myBitMap;
+	Microsoft::WRL::ComPtr<IWICImagingFactory> _WICFactory;
+	Microsoft::WRL::ComPtr<IWICBitmap > _WICBitmap;
+	Microsoft::WRL::ComPtr<IWICBitmapLock> _WICBitmapLock;
 public:
 	Graphics();
 	~Graphics();
@@ -23,6 +26,9 @@ public:
 	void FillRect(DirectX::SimpleMath::Vector2 V, float zoom, D2D1::ColorF colour);
 	void FillRect(D2D1_RECT_F r, D2D1::ColorF colour);
 	void Resize(long width, long height);
+
+	void CopyScreenToBitmap();
+	void DrawSavedBitmap();
 
 	RECT GetWinRect() { return _windowRect; };
 	long GetWinHeight() { return _windowRect.bottom - _windowRect.top; }

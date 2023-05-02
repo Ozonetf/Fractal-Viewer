@@ -24,11 +24,19 @@ bool Graphics::init(HWND windowhandle, long width, long height)
 	_deviceResource->CreateDeviceResources();
 
 	_deviceResource->CreateWindowSizeDependentResources();
+	HRESULT hr = CoCreateInstance(
+		CLSID_WICImagingFactory,
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		IID_PPV_ARGS(&_WICFactory)
+	);
 	DX::ThrowIfFailed(
 		_deviceResource->GetD2DContext()->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &_brush)
 	);
+	CreateWinSizeDepedentResources();
 	RECT rect;
 	GetClientRect(windowhandle, &rect);
+	if (hr != S_OK)return false;
 	return true;
 }
 
@@ -105,13 +113,75 @@ void Graphics::Resize(long width, long height)
 	_windowRect.left, _windowRect.top = 0;
 	_windowRect.right = width;
 	_windowRect.bottom = height;
+	CreateWinSizeDepedentResources();
 	//_D2D1renderTarget->Resize(D2D1::SizeU(width, height));
+}
+
+void Graphics::CopyScreenToBitmap()
+{
+	UINT cbBufferSize = 0, stride = 0;
+	BYTE* pv = NULL;
+	WICRect rcLock = { 0, 0, _windowRect.right, _windowRect.bottom };
+	_WICBitmap->Lock(&rcLock, WICBitmapLockWrite, _WICBitmapLock.GetAddressOf());
+	_WICBitmapLock->GetDataPointer(&cbBufferSize, &pv);
+	_WICBitmapLock->GetStride(&stride);
+	int bBufferSize = _windowRect.right * _windowRect.bottom * 4;	//byte count of bitmap
+	for (size_t i = 0; i < bBufferSize; i+=4)
+	{
+		pv[i] = 0;		//B
+		pv[i+1] = 0;	//G
+		pv[i+2] = 200;	//R
+		pv[i+3] = 0;	//A
+	}
+	_WICBitmapLock.Reset();	//release the lock after using
+	DX::ThrowIfFailed(
+		_deviceResource->GetD2DContext()->CreateBitmapFromWicBitmap(_WICBitmap.Get(), _myBitMap.GetAddressOf())
+	);
+}
+
+void Graphics::DrawSavedBitmap()
+{
+	_deviceResource->GetD2DContext()->DrawBitmap(_myBitMap.Get(), NULL, 1.0f, D2D1_INTERPOLATION_MODE_LINEAR);
 }
 
 void Graphics::CreateWinSizeDepedentResources()
 {
+	float m_dpi = GetDpiForWindow(_windowHandle);
 	_deviceResource->CreateWindowSizeDependentResources();
-	//_D2D1renderTarget->Resize(D2D1::SizeU(_windowRect.right, _windowRect.bottom));
+	D2D1_SIZE_U WinSize = { static_cast<UINT32>(_windowRect.right * m_dpi / 96.0f), static_cast<UINT32>(_windowRect.bottom * m_dpi / 96.0f) };
+	D2D1_BITMAP_PROPERTIES1 bitmapProperties;
+	bitmapProperties.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	bitmapProperties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+	bitmapProperties.dpiX = m_dpi;
+	bitmapProperties.dpiY = m_dpi;
+	bitmapProperties.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET;
+	bitmapProperties.colorContext = nullptr;
+		//D2D1::BitmapProperties1(
+		//	D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+		//	D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED
+		//	),
+		//	m_dpi,
+		//	m_dpi
+		//);
+	//create WIC bitmap the size of render target
+	DX::ThrowIfFailed(
+		_WICFactory->CreateBitmap(
+			WinSize.width,
+			WinSize.height,
+			GUID_WICPixelFormat32bppPBGRA,	//direct2d uses 32bppPBGRA pixelformat
+			WICBitmapCacheOnDemand,			
+			_WICBitmap.ReleaseAndGetAddressOf()
+		)
+	);
+	DX::ThrowIfFailed(
+		_deviceResource->GetD2DContext()->CreateBitmap(
+			WinSize,
+			nullptr,
+			0,
+			&bitmapProperties,
+			&_myBitMap
+		)
+	);
 }
 
 void Graphics::OnDeviceLost()

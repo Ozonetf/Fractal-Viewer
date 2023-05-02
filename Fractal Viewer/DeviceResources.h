@@ -72,6 +72,7 @@ namespace DX
         ID2D1Factory1*          GetD2DFactory() const noexcept { return m_d2dFactory.Get(); }
         ID2D1DeviceContext*     GetD2DContext() const noexcept { return m_d2dContext.Get(); }
         ID2D1Device*            GetD2DDevice()  const noexcept { return m_d2dDevice.Get(); }
+        ID2D1Bitmap1*           GetTargetBitMap() const noexcept { return m_d2dTargetBitmap.Get(); }
         // Performance events
         void PIXBeginEvent(_In_z_ const wchar_t* name)
         {

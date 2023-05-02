@@ -45,18 +45,18 @@ void Game::Update()
 {
 	using namespace DirectX::SimpleMath;
 	ProcessInputs();
-	if (circle_x>_graphics->GetWinWidth())
-	{
-		circle_x = 0;
-	}
-	else if (circle_x < 0)
-	{
-		circle_x = _graphics->GetWinWidth();
-	}
-	else
-	{
-		circle_x += speed;
-	}
+	//if (circle_x>_graphics->GetWinWidth())
+	//{
+	//	circle_x = 0;
+	//}
+	//else if (circle_x < 0)
+	//{
+	//	circle_x = _graphics->GetWinWidth();
+	//}
+	//else
+	//{
+	//	circle_x += speed;
+	//}
 
 
 	//figures out which pixels are in camera's view, get their relative postion and push to render queue
@@ -83,11 +83,20 @@ void Game::Render()
 	//rect's right and bottom are not insclusive in fillrect, workaround to avoid gap
 	//in cells when zoomed in
 	float zoom = (_pixelScale == 1 ? 1 : _pixelScale+1);
-	//drawFractal();
-	_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
-	//_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
+	if (reCalc) 
+	{
+		drawFractal();
+	}
+	_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
+	//_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
 	_graphics->EndDraw();
+	if (reCalc)
+	{
+		_graphics->CopyScreenToBitmap();
+		reCalc = false;
+	}
 	_graphics->Present();
+
 }
 
 void Game::ProcessInputs()
@@ -98,7 +107,8 @@ void Game::ProcessInputs()
 	auto kb = _keyboard->GetState();
 	_kTraker.Update(kb);
 	if (_kTraker.pressed.A) speed = -speed;
-	if (_kTraker.pressed.P) drawFractal();
+	if (_kTraker.pressed.P) reCalc = true;
+	if (_kTraker.pressed.Q) TEST = !TEST;
 	if (_kTraker.pressed.Right)
 	{
 		_bailOut += 10; 
@@ -164,6 +174,7 @@ void Game::OnWindowSizeChanged(long width, long height)
 {
 	PRINT_DEBUG("this resized");
 	_graphics->Resize(width, height);
+	pixels.resize(width * height);
 	//keep camera centered when resizing window
 	_cameraCoord.x = width / 2;
 	_cameraCoord.y = height / 2;
@@ -208,7 +219,7 @@ void Game::drawFractal()
 		{
 			v.x = (float(j) - halfWidth) / (halfHeight/2);
 			v.y = (float(i) - halfHeight) / (halfHeight/2);
-			pixels.at(h * i + j) = getDepth(v);
+			pixels.at(iter) = getDepth(v);
 			iter++;
 		}
 	}
@@ -216,19 +227,22 @@ void Game::drawFractal()
 	auto total = end - start;
 	PRINT_DEBUG("%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
 	start = std::chrono::steady_clock::now();
-	_graphics->BeginDraw();
+	iter = 0;
+	//_graphics->BeginDraw();
 	for (size_t i = 0; i < h; i++)
 	{
 		for (size_t j = 0; j < w; j++)
 		{
-			hue = (float)pixels.at(h * i + j) / (float)_bailOut;
+			hue = (float)pixels.at(iter) / (float)_bailOut;
 			_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, D2D1::ColorF(hue, 0, hue));
 			iter++;
 		}
 	}
+	//reCalc = false;
+
 	end = std::chrono::steady_clock::now();
 	total = end - start;
 	PRINT_DEBUG("render:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
-	_graphics->EndDraw();
+	//_graphics->EndDraw();
 }
 
