@@ -1,17 +1,22 @@
 #pragma once
-class Graphics
+#include "DeviceResources.h"
+class Graphics : public DX::IDeviceNotify
 {
-	ID2D1Factory* _factory;
-	ID2D1HwndRenderTarget* _renderTarget;
-	ID2D1SolidColorBrush* _brush;
-	
+	//ID2D1SolidColorBrush* _brush;
+	std::unique_ptr<DX::DeviceResources> _deviceResource;
+	Microsoft::WRL::ComPtr<ID2D1Bitmap1> _myBitMap;
+	Microsoft::WRL::ComPtr<ID2D1SolidColorBrush> _brush;
+	Microsoft::WRL::ComPtr<IWICImagingFactory> _WICFactory;
+	Microsoft::WRL::ComPtr<IWICBitmap > _WICBitmap;
+	Microsoft::WRL::ComPtr<IWICBitmapLock> _WICBitmapLock;
 public:
 	Graphics();
 	~Graphics();
 
-	bool init(HWND windowhandle);
-	void BeginDraw() { _renderTarget->BeginDraw(); }
-	void EndDraw() { if(_renderTarget->EndDraw()== D2DERR_RECREATE_TARGET) throw 20; }
+	bool init(HWND windowhandle, long width, long height);
+	void BeginDraw() { _deviceResource->GetD2DContext()->BeginDraw(); }
+	void EndDraw() { if(_deviceResource->GetD2DContext()->EndDraw()== D2DERR_RECREATE_TARGET) throw 20; }
+	void Present() { _deviceResource->Present(); };
 
 	void SetWindow(HWND windowhandle, long width, long height);
 	void ClearScreen(float r, float g, float b);
@@ -23,14 +28,20 @@ public:
 	void FillRect(D2D1_RECT_F r, D2D1::ColorF colour);
 	void Resize(long width, long height);
 
+	void CopyScreenToBitmap();
+	void DrawSavedBitmap();
+
 	RECT GetWinRect() { return _windowRect; };
-	long GetWinHeight() { return (_windowRect.bottom*DPI/96); }
-	long GetWinWidth() { return (_windowRect.right*DPI/96); }
+	long GetWinHeight() { return (_windowRect.bottom * m_dpi / 96); }
+	long GetWinWidth() { return (_windowRect.right * m_dpi / 96); }
 
 
 private:
-	int DPI;
+	int m_dpi;
 	void CreateWinSizeDepedentResources();
 	HWND _windowHandle;
 	RECT _windowRect;
+	// Inherited via IDeviceNotify
+	virtual void OnDeviceLost() override;
+	virtual void OnDeviceRestored() override;
 };

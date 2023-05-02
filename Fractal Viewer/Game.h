@@ -1,9 +1,6 @@
 #pragma once
 #include "Graphics.h"
 #include "Main.h"
-#include <vector>
-
-int getDepth(DirectX::SimpleMath::Vector2 c);
 
 class Game 
 {
@@ -13,20 +10,18 @@ public:
 	Game();
 	~Game();
 
-	void Init(HWND windowhandle, int width, int height);
+	void Init(HWND windowhandle, long width, long height);
 
 	void Tick();
 	void Render();
 
 	void OnWindowSizeChanged(long width, long height);
-	void OnResize();
 private:
 	void Update();
 	void ProcessInputs();
 	void drawFractal();
-	int getDepth(DirectX::SimpleMath::Vector2 c);
-	D2D1::ColorF HSL2RGB(int n);
-
+	int	 getDepth(DirectX::SimpleMath::Vector2 c);
+D2D1::ColorF HSL2RGB(int n);
 	int circle_x = 0;
 	std::unique_ptr<StepTimer> _timer;
 	std::unique_ptr<DirectX::Keyboard> _keyboard;
@@ -34,9 +29,8 @@ private:
 	DirectX::Mouse::ButtonStateTracker _mTraker;
 	DirectX::Keyboard::KeyboardStateTracker _kTraker;
 
-
 	std::queue<DirectX::SimpleMath::Vector2> _renderQueue;
-	bool curBuffer = 0;
+	bool reCalc = false;
 	bool paused = true;
 	int _zoom = 1;
 	int _scrollTemp = 0;
@@ -48,4 +42,6 @@ private:
 	DirectX::SimpleMath::Vector2 _cameraCoord = DirectX::SimpleMath::Vector2(0, 0);
 	int speed = 5;
 	D2D1_RECT_F _selectBox;
+
+
 };
