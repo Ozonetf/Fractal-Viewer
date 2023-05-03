@@ -13,9 +13,10 @@ Graphics::Graphics()
 
 Graphics::~Graphics()
 {	
+	_WICBitmap.Reset();
 }
 
-bool Graphics::init(HWND windowhandle, long width, long height)
+void Graphics::init(HWND windowhandle, long width, long height)
 {
 	SetWindow(windowhandle, width, height);
 	_deviceResource->SetWindow(windowhandle, width, height);   
@@ -23,20 +24,18 @@ bool Graphics::init(HWND windowhandle, long width, long height)
 	_deviceResource->CreateDeviceResources();
 
 	_deviceResource->CreateWindowSizeDependentResources();
-	HRESULT hr = CoCreateInstance(
-		CLSID_WICImagingFactory,
-		NULL,
-		CLSCTX_INPROC_SERVER,
-		IID_PPV_ARGS(&_WICFactory)
+	DX::ThrowIfFailed(
+		CoCreateInstance(
+			CLSID_WICImagingFactory,
+			NULL,
+			CLSCTX_INPROC_SERVER,
+			IID_PPV_ARGS(&_WICFactory)
+		)
 	);
 	DX::ThrowIfFailed(
 		_deviceResource->GetD2DContext()->CreateSolidColorBrush(D2D1::ColorF(0, 0, 0), &_brush)
 	);
 	CreateWinSizeDepedentResources();
-	RECT rect;
-	GetClientRect(windowhandle, &rect);
-	if (hr != S_OK)return false;
-	return true;
 }
 
 void Graphics::SetWindow(HWND windowhandle, long width, long height)
@@ -113,25 +112,37 @@ void Graphics::Resize(long width, long height)
 	_windowRect.right = width;
 	_windowRect.bottom = height;
 	CreateWinSizeDepedentResources();
-	//_D2D1renderTarget->Resize(D2D1::SizeU(width, height));
 }
 
-void Graphics::CopyScreenToBitmap()
+void Graphics::CopyScreenToBitmap(std::vector<DirectX::SimpleMath::Color>* src)
 {
-	UINT cbBufferSize = 0, stride = 0;
+	UINT cbBufferSize = 0, stride = 0, foo;
 	BYTE* pv = NULL;
 	WICRect rcLock = { 0, 0, _windowRect.right, _windowRect.bottom };
 	_WICBitmap->Lock(&rcLock, WICBitmapLockWrite, _WICBitmapLock.GetAddressOf());
 	_WICBitmapLock->GetDataPointer(&cbBufferSize, &pv);
 	_WICBitmapLock->GetStride(&stride);
-	int bBufferSize = _windowRect.right * _windowRect.bottom * 4;	//byte count of bitmap
-	for (size_t i = 0; i < bBufferSize; i+=4)
+	for (size_t i = 0; i < cbBufferSize; i++)
 	{
-		pv[i] = 0;		//B
-		pv[i+1] = 0;	//G
-		pv[i+2] = 200;	//R
-		pv[i+3] = 0;	//A
+
 	}
+	int i = -1;
+	DirectX::PackedVector::XMCOLOR xm;
+	for (auto iter : *src)
+	{
+		xm = iter.BGRA();
+		pv[i++]	= xm.b;		//B
+		pv[i++] = xm.g;		//G
+		pv[i++] = xm.r;		//R
+		pv[i++] = xm.a;		//A
+	}
+	//for (size_t i = 0; i < bBufferSize; i+=4)
+	//{
+	//	pv[i] = 0;		//B
+	//	pv[i+1] = 0;	//G
+	//	pv[i+2] = 200;	//R
+	//	pv[i+3] = 0;	//A
+	//}
 	_WICBitmapLock.Reset();	//release the lock after using
 	DX::ThrowIfFailed(
 		_deviceResource->GetD2DContext()->CreateBitmapFromWicBitmap(_WICBitmap.Get(), _myBitMap.GetAddressOf())
@@ -155,13 +166,7 @@ void Graphics::CreateWinSizeDepedentResources()
 	bitmapProperties.dpiY = m_dpi;
 	bitmapProperties.bitmapOptions = D2D1_BITMAP_OPTIONS_TARGET;
 	bitmapProperties.colorContext = nullptr;
-		//D2D1::BitmapProperties1(
-		//	D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-		//	D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED
-		//	),
-		//	m_dpi,
-		//	m_dpi
-		//);
+	_WICBitmap.Reset();
 	//create WIC bitmap the size of render target
 	DX::ThrowIfFailed(
 		_WICFactory->CreateBitmap(
@@ -169,7 +174,7 @@ void Graphics::CreateWinSizeDepedentResources()
 			WinSize.height,
 			GUID_WICPixelFormat32bppPBGRA,	//direct2d uses 32bppPBGRA pixelformat
 			WICBitmapCacheOnDemand,			
-			_WICBitmap.ReleaseAndGetAddressOf()
+			_WICBitmap.GetAddressOf()
 		)
 	);
 	DX::ThrowIfFailed(
@@ -178,7 +183,7 @@ void Graphics::CreateWinSizeDepedentResources()
 			nullptr,
 			0,
 			&bitmapProperties,
-			&_myBitMap
+			_myBitMap.ReleaseAndGetAddressOf()
 		)
 	);
 }

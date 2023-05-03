@@ -5,7 +5,8 @@
 class Game 
 {
 	std::unique_ptr<Graphics>	_graphics;
-	std::vector<int> pixels;
+	std::vector<pGBRA32> pixels;
+	std::vector<DirectX::SimpleMath::Color> pixelColours;
 public:
 	Game();
 	~Game();
@@ -21,7 +22,8 @@ private:
 	void ProcessInputs();
 	void drawFractal();
 	int	 getDepth(DirectX::SimpleMath::Vector2 c);
-D2D1::ColorF HSL2RGB(int n);
+	pGBRA32 HSL2RGB(int n);
+	DirectX::SimpleMath::Color HSL2RGBf(int n);
 	int circle_x = 0;
 	std::unique_ptr<StepTimer> _timer;
 	std::unique_ptr<DirectX::Keyboard> _keyboard;

@@ -18,17 +18,15 @@ void Game::Init(HWND windowhandle, long width, long height)
 	_keyboard = std::make_unique<DirectX::Keyboard>();
 	m_mouse = std::make_unique<DirectX::Mouse>();
 	m_mouse->SetWindow(windowhandle);
-	//sets the window handle as ther rendertarget for d2d
-	if (!_graphics->init(windowhandle, width, height))
-	{
-		throw 20;
-	};
+	_graphics->init(windowhandle, width, height);
 	//_cameraCoord.x = width / 2;
 	//_cameraCoord.y = height / 2;	
 	//_zoomRatioX = width / 48;
 	//_zoomRatioY = height / 48;
 	//circle_x = 0;
-	pixels = std::vector<int>(width * height, 0);
+	pixels = std::vector<pGBRA32>(width * height);
+	pixelColours = std::vector<DirectX::SimpleMath::Color>(width * height);
+	//pixels->resize(width * height);
 }
 
 void Game::Tick()
@@ -89,10 +87,11 @@ void Game::Render()
 	}
 	_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
 	//_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
+	_graphics->DrawSavedBitmap();
 	_graphics->EndDraw();
 	if (reCalc)
 	{
-		_graphics->CopyScreenToBitmap();
+		_graphics->CopyScreenToBitmap(&pixelColours);
 		reCalc = false;
 	}
 	_graphics->Present();
@@ -174,6 +173,7 @@ void Game::OnWindowSizeChanged(long width, long height)
 	PRINT_DEBUG("this resized");
 	_graphics->Resize(width, height);
 	pixels.resize(width * height);
+	pixelColours.resize(width * height);
 	//keep camera centered when resizing window
 	_cameraCoord.x = width / 2;
 	_cameraCoord.y = height / 2;
@@ -195,14 +195,10 @@ int Game::getDepth(DirectX::SimpleMath::Vector2 c)
 		ret++;
 		BBB = (v1.x * v1.x + v1.y * v1.y);
 	}
-	if (ret>25)
-	{
-		return ret;
-	}
 	return ret;
 }
 
-D2D1::ColorF Game::HSL2RGB(int n)
+pGBRA32 Game::HSL2RGB(int n)
 {
 	float C, X, S, L, Hdot, H;
 	const float Lightnes  = .5f;
@@ -212,34 +208,66 @@ D2D1::ColorF Game::HSL2RGB(int n)
 	H = (360.0f / (float)_bailOut) * n;
 	Hdot = (float)std::abs(std::fmod(H, 2) - 1);
 	X = C * (1 - Hdot);
+	uint8_t iC = static_cast<uint8_t>(C*255), iX = static_cast<uint8_t>(X * 255);
 	switch (int(H)/60)
 	{
-	case 0: return D2D1::ColorF{ C, X, 0 }; break;
-	case 1: return D2D1::ColorF{ X, C, 0 }; break;
-	case 2: return D2D1::ColorF{ 0, C, X }; break;
-	case 3: return D2D1::ColorF{ 0, X, C }; break;
-	case 4: return D2D1::ColorF{ X, 0, C }; break;
-	case 5: return D2D1::ColorF{ C, 0, X }; break;
+	default:
+	case 0: return pGBRA32{ iC, iX, 0, 0 }; break;
+	case 1: return pGBRA32{ iX, iC, 0, 0 }; break;
+	case 2: return pGBRA32{ 0, iC, iX, 0 }; break;
+	case 3: return pGBRA32{ 0, iX, iC, 0 }; break;
+	case 4: return pGBRA32{ iX, 0, iC, 0 }; break;
+	case 5: return pGBRA32{ iC, 0, iX, 0 }; break;
+	}
+}
+
+DirectX::SimpleMath::Color Game::HSL2RGBf(int n)
+{
+	if (n == _bailOut)
+	{
+		return DirectX::SimpleMath::Color{0, 0, 0, 0};
+	}
+	float C, X, S, L, Hdot, H;
+	const float Lightnes = .5f;
+	L = (1 - std::abs(2 * Lightnes - 1));
+	S = ((float)n / (float)_bailOut);
+	C = S * L;
+	H = (360.0f / (float)_bailOut) * n;
+	Hdot = (float)std::abs(std::fmod(H, 2) - 1);
+	X = C * (1 - Hdot);
+	switch (int(H) / 60)
+	{
+	case 0: return DirectX::SimpleMath::Color{ C, X, 0, 1 }; break;
+	case 1: return DirectX::SimpleMath::Color{ X, C, 0, 1 }; break;
+	case 2: return DirectX::SimpleMath::Color{ 0, C, X, 1 }; break;
+	case 3: return DirectX::SimpleMath::Color{ 0, X, C, 1 }; break;
+	case 4: return DirectX::SimpleMath::Color{ X, 0, C, 1 }; break;
+	case 5: return DirectX::SimpleMath::Color{ C, 0, X, 1 }; break;
+	case 6: return DirectX::SimpleMath::Color{}; break;
 	}
 }
 
 void Game::drawFractal()
 {
 	auto start = std::chrono::steady_clock::now();
-	float hue;
-	int iter = 0, w, h;
+	int hue;
+	int iter = 0, w, h, TEST;
 	w = _graphics->GetWinWidth();
 	h = _graphics->GetWinHeight();
 	float halfWidth = (float)w / 2.0f;
 	float halfHeight = (float)h / 2.0f;
 	DirectX::SimpleMath::Vector2 v;
+	_graphics->BeginDraw();
+
 	for (size_t i = 0; i < h; i++)
 	{
 		for (size_t j= 0; j < w; j++)
 		{
 			v.x = (float(j) - halfWidth) / (halfHeight /2.0f);
 			v.y = (float(i) - halfHeight) / (halfHeight /2.0f);
-			pixels.at(iter) = getDepth(v);
+			TEST = std::abs(getDepth(v) - _bailOut);
+			pixelColours.at(iter) = HSL2RGBf(getDepth(v));
+			//pixels.at(iter) = HSL2RGB(TEST);
 			iter++;
 		}
 	}
@@ -247,22 +275,23 @@ void Game::drawFractal()
 	auto total = end - start;
 	PRINT_DEBUG("%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
 	start = std::chrono::steady_clock::now();
+	_graphics->CopyScreenToBitmap(&pixelColours);
 	iter = 0;
-	//_graphics->BeginDraw();
-	for (size_t i = 0; i < h; i++)
-	{
-		for (size_t j = 0; j < w; j++)
-		{
-			hue = (float)std::abs(pixels.at(iter) - _bailOut);
-			_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, HSL2RGB(hue));
-			iter++;
-		}
-	}
+	//for (size_t i = 0; i < h; i++)
+	//{
+	//	for (size_t j = 0; j < w; j++)
+	//	{
+	//		hue = (float)std::abs(pixels.at(iter) - _bailOut);
+	//		_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, HSL2RGBf(TEST));
+	// 
+	//		iter++;
+	//	}
+	//}
 	//reCalc = false;
 
 	end = std::chrono::steady_clock::now();
 	total = end - start;
 	PRINT_DEBUG("render:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
-	//_graphics->EndDraw();
+	_graphics->EndDraw();
 }
 

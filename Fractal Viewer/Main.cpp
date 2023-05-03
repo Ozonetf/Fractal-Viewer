@@ -268,7 +268,7 @@ HRESULT Initialize()
         HINST_THISCOMPONENT,	//hinstance	
         0);
     _game = std::make_unique<Game>();
-    _game->Init(windowHandle, rect.right, rect.bottom);
+    _game->Init(windowHandle, rect.right - rect.left, rect.bottom - rect.top);
 
     res = windowHandle ? S_OK : E_FAIL;
     if (SUCCEEDED(res))

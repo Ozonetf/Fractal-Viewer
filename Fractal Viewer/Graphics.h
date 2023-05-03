@@ -1,5 +1,25 @@
 #pragma once
 #include "DeviceResources.h"
+
+struct pGBRA32
+{
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+	uint8_t a;
+	pGBRA32(uint8_t _r, uint8_t _g, uint8_t _b, uint8_t _a)
+	{
+		r = _r;
+		g = _g;
+		b = _b;
+		a = _a;
+	}
+	pGBRA32()
+	{
+		r = g = b = a = 0;
+	}
+}; 
+
 class Graphics : public DX::IDeviceNotify
 {
 	//ID2D1SolidColorBrush* _brush;
@@ -13,7 +33,7 @@ public:
 	Graphics();
 	~Graphics();
 
-	bool init(HWND windowhandle, long width, long height);
+	void init(HWND windowhandle, long width, long height);
 	void BeginDraw() { _deviceResource->GetD2DContext()->BeginDraw(); }
 	void EndDraw() { if(_deviceResource->GetD2DContext()->EndDraw()== D2DERR_RECREATE_TARGET) throw 20; }
 	void Present() { _deviceResource->Present(); };
@@ -28,7 +48,7 @@ public:
 	void FillRect(D2D1_RECT_F r, D2D1::ColorF colour);
 	void Resize(long width, long height);
 
-	void CopyScreenToBitmap();
+	void CopyScreenToBitmap(std::vector<DirectX::SimpleMath::Color>* src);
 	void DrawSavedBitmap();
 
 	RECT GetWinRect() { return _windowRect; };
