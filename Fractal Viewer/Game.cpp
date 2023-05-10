@@ -24,9 +24,13 @@ void Game::Init(HWND windowhandle, long width, long height)
 	//_zoomRatioX = width / 48;
 	//_zoomRatioY = height / 48;
 	//circle_x = 0;
-	pixels = std::vector<pGBRA32>(width * height);
 	pixelColours = std::vector<DirectX::SimpleMath::Color>(width * height);
-	//pixels->resize(width * height);
+	_targetRegin = 	{ 
+		-2 * ((float)width / (float)height), 
+		-2, 
+		2 * ((float)width / (float)height),
+		2 
+	};
 }
 
 void Game::Tick()
@@ -83,7 +87,7 @@ void Game::Render()
 	float zoom = (_pixelScale == 1 ? 1 : _pixelScale+1);
 	if (reCalc) 
 	{
-		drawFractal();
+		CalculateFractal();
 	}
 	_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
 	//_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
@@ -106,16 +110,25 @@ void Game::ProcessInputs()
 	auto kb = _keyboard->GetState();
 	_kTraker.Update(kb);
 	if (_kTraker.pressed.A) speed = -speed;
-	if (_kTraker.pressed.P) reCalc = true;
+	if (_kTraker.pressed.P)
+	{
+		_targetRegin = {
+		-2 * ((float)_graphics->GetWinWidth() / (float)_graphics->GetWinHeight()),
+		-2,
+		2 * ((float)_graphics->GetWinWidth() / (float)_graphics->GetWinHeight()),
+		2
+		};
+		reCalc = true;
+	}
 	if (_kTraker.pressed.Right)
 	{
 		_bailOut += 10; 
-		drawFractal();
+		CalculateFractal();
 	}
 	if (_kTraker.pressed.Left)
 	{
 		_bailOut -= 10; 
-		drawFractal();
+		CalculateFractal();
 	}
 	if (kb.Up)
 	{
@@ -161,6 +174,8 @@ void Game::ProcessInputs()
 	}
 	else if(_mTraker.leftButton == ButtonState::RELEASED)
 	{
+		ResizeViewport();
+		CalculateFractal();
 		_selectBox = { 0, 0, 0, 0 };
 	}
 	_zoom -= (_scrollTemp - mouse.scrollWheelValue) / _zoomFactor;
@@ -170,15 +185,19 @@ void Game::ProcessInputs()
 
 void Game::OnWindowSizeChanged(long width, long height)
 {
-	PRINT_DEBUG("this resized");
 	_graphics->Resize(width, height);
-	pixels.resize(width * height);
 	pixelColours.resize(width * height);
 	//keep camera centered when resizing window
 	_cameraCoord.x = width / 2;
 	_cameraCoord.y = height / 2;
 	_zoomRatioX = width / 48;
 	_zoomRatioY = height / 48;
+	_targetRegin = {
+	-2 * ((float)width / (float)height),
+	-2,
+	2 * ((float)width / (float)height),
+	2
+	};
 	PRINT_DEBUG("x ratio: %d, y ratio: %d\n", _zoomRatioX, _zoomRatioY);
 }
 
@@ -247,27 +266,25 @@ DirectX::SimpleMath::Color Game::HSL2RGBf(int n)
 	}
 }
 
-void Game::drawFractal()
+void Game::CalculateFractal()
 {
-	auto start = std::chrono::steady_clock::now();
-	int hue;
-	int iter = 0, w, h, TEST;
-	w = _graphics->GetWinWidth();
-	h = _graphics->GetWinHeight();
-	float halfWidth = (float)w / 2.0f;
-	float halfHeight = (float)h / 2.0f;
+	float w, h;
+	int iter = 0;
+	w = (float)_graphics->GetWinWidth();
+	h = (float)_graphics->GetWinHeight();
+	float unit = (_targetRegin.right - _targetRegin.left) / (float)w;
+	float halfWidth = w / 2.0f;
+	float halfHeight = h / 2.0f;
 	DirectX::SimpleMath::Vector2 v;
-	_graphics->BeginDraw();
+	auto start = std::chrono::steady_clock::now();
 
 	for (size_t i = 0; i < h; i++)
 	{
-		for (size_t j= 0; j < w; j++)
+		v.y = _targetRegin.top + i * unit;
+		for (size_t j = 0; j < w; j++)
 		{
-			v.x = (float(j) - halfWidth) / (halfHeight /2.0f);
-			v.y = (float(i) - halfHeight) / (halfHeight /2.0f);
-			TEST = std::abs(getDepth(v) - _bailOut);
+			v.x = _targetRegin.left + unit * j;
 			pixelColours.at(iter) = HSL2RGBf(getDepth(v));
-			//pixels.at(iter) = HSL2RGB(TEST);
 			iter++;
 		}
 	}
@@ -276,22 +293,52 @@ void Game::drawFractal()
 	PRINT_DEBUG("%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
 	start = std::chrono::steady_clock::now();
 	_graphics->CopyScreenToBitmap(&pixelColours);
-	iter = 0;
-	//for (size_t i = 0; i < h; i++)
-	//{
-	//	for (size_t j = 0; j < w; j++)
-	//	{
-	//		hue = (float)std::abs(pixels.at(iter) - _bailOut);
-	//		_graphics->FillRect(DirectX::SimpleMath::Vector2{ (float)j, (float)i }, 1, HSL2RGBf(TEST));
-	// 
-	//		iter++;
-	//	}
-	//}
-	//reCalc = false;
-
 	end = std::chrono::steady_clock::now();
 	total = end - start;
-	PRINT_DEBUG("render:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
-	_graphics->EndDraw();
+	PRINT_DEBUG("copy:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
+}
+
+void Game::ResizeViewport()
+{
+	if (_selectBox.bottom < _selectBox.top)
+	{
+		FLOAT temp = _selectBox.top;
+		_selectBox.top = _selectBox.bottom;
+		_selectBox.bottom = temp;
+	}
+	if (_selectBox.left > _selectBox.right)
+	{
+		FLOAT temp = _selectBox.left;
+		_selectBox.left = _selectBox.right;
+		_selectBox.right = temp;
+	}
+	float w = (float)_graphics->GetWinWidth();
+	float h = (float)_graphics->GetWinHeight();
+	float unit = (_targetRegin.bottom - _targetRegin.top) / h;
+	//we want to keep the render in correct ratio to the current window, so we calculate
+	//the new target regin that contain the user's selection while maintaining ratio
+	
+	//if select box is taller in ratio than current window
+	if (std::abs(_selectBox.bottom - _selectBox.top) > std::abs(_selectBox.left - _selectBox.right))
+	{
+		float ratio = w / h, offset, center;
+		offset = (_selectBox.bottom - _selectBox.top) * .5f * ratio;
+		center = (_selectBox.left + _selectBox.right) / 2.f;
+		_targetRegin.top += _selectBox.top * unit;
+		_targetRegin.bottom -= (h - _selectBox.bottom) * unit;
+		_targetRegin.left += (center-offset) * unit;
+		_targetRegin.right -= (w - (center + offset)) * unit;
+	}
+	//if select box is wider in ratio than current window
+	else
+	{
+		float ratio = h / w, offset, center;
+		offset = (_selectBox.right - _selectBox.left) * .5f * ratio;
+		center = (_selectBox.bottom + _selectBox.top) * .5f;
+		_targetRegin.left += _selectBox.left * unit;
+		_targetRegin.right -= (w - _selectBox.right) * unit;
+		_targetRegin.top += (center - offset) * unit;
+		_targetRegin.bottom -= (h - (center + offset)) * unit;
+	}
 }
 

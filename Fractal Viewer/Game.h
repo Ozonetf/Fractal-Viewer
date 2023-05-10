@@ -5,7 +5,6 @@
 class Game 
 {
 	std::unique_ptr<Graphics>	_graphics;
-	std::vector<pGBRA32> pixels;
 	std::vector<DirectX::SimpleMath::Color> pixelColours;
 public:
 	Game();
@@ -20,7 +19,8 @@ public:
 private:
 	void Update();
 	void ProcessInputs();
-	void drawFractal();
+	void CalculateFractal();
+	void ResizeViewport();
 	int	 getDepth(DirectX::SimpleMath::Vector2 c);
 	pGBRA32 HSL2RGB(int n);
 	DirectX::SimpleMath::Color HSL2RGBf(int n);
@@ -44,6 +44,5 @@ private:
 	DirectX::SimpleMath::Vector2 _cameraCoord = DirectX::SimpleMath::Vector2(0, 0);
 	int speed = 5;
 	D2D1_RECT_F _selectBox;
-
-
+	D2D1_RECT_F _targetRegin;
 };

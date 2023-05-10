@@ -13,7 +13,8 @@ Graphics::Graphics()
 
 Graphics::~Graphics()
 {	
-	_WICBitmap.Reset();
+	//_WICFactory.Reset();
+	//_WICBitmap.Reset();
 }
 
 void Graphics::init(HWND windowhandle, long width, long height)
@@ -68,8 +69,11 @@ void Graphics::ClearScreen(float r, float g, float b)
 void Graphics::DrawCircle(float x, float y, float radius, float r, float g, float b, float a)
 {
 	_brush->SetColor(D2D1::ColorF(r, g, b, a));
-	_deviceResource->GetD2DContext()->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush.Get(), 3.0f);
-	//_D2D1renderTarget->DrawEllipse(D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius), _brush, 3.0f);
+	_deviceResource->GetD2DContext()->DrawEllipse(
+		D2D1::Ellipse(D2D1::Point2F(x, y), radius, radius),
+		_brush.Get(),
+		3.0f
+	);
 }
 
 void Graphics::DrawRect(D2D1_RECT_F r, D2D1::ColorF colour)
