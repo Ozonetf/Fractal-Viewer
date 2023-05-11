@@ -132,11 +132,13 @@ void Game::ProcessInputs()
 	}
 	if (kb.Up)
 	{
-		_cameraCoord.y -= 10;
+		_AADepth *= 2;
+		reCalc = true;
 	}
 	if (kb.Down)
 	{
-		_cameraCoord.y += 10;
+		_AADepth /= 2 < 1 ? 1 : _AADepth;
+		reCalc = true;
 	}	
 	if (_kTraker.pressed.LeftControl) _zoomFactor = 30; 
 	//one "scroll" on MWheel typically 120 in value
@@ -175,8 +177,7 @@ void Game::ProcessInputs()
 	else if(_mTraker.leftButton == ButtonState::RELEASED)
 	{
 		ResizeViewport();
-		CalculateFractal();
-		_selectBox = { 0, 0, 0, 0 };
+		reCalc = true;
 	}
 	_zoom -= (_scrollTemp - mouse.scrollWheelValue) / _zoomFactor;
 	_scrollTemp = mouse.scrollWheelValue;
@@ -268,24 +269,40 @@ DirectX::SimpleMath::Color Game::HSL2RGBf(int n)
 
 void Game::CalculateFractal()
 {
-	float w, h;
+	float w, h, curX, curY, patchsize = (float)_AADepth * (float)_AADepth;
 	int iter = 0;
 	w = (float)_graphics->GetWinWidth();
 	h = (float)_graphics->GetWinHeight();
 	float unit = (_targetRegin.right - _targetRegin.left) / (float)w;
+	float AAunit = unit / (float)_AADepth;
 	float halfWidth = w / 2.0f;
 	float halfHeight = h / 2.0f;
 	DirectX::SimpleMath::Vector2 v;
 	auto start = std::chrono::steady_clock::now();
-
+	DirectX::SimpleMath::Color c, aafactor;
+	aafactor = { patchsize, patchsize , patchsize };
+	c = { 0, 0, 0, 0};
 	for (size_t i = 0; i < h; i++)
 	{
-		v.y = _targetRegin.top + i * unit;
+		curY = _targetRegin.top + i * unit;
 		for (size_t j = 0; j < w; j++)
 		{
-			v.x = _targetRegin.left + unit * j;
-			pixelColours.at(iter) = HSL2RGBf(getDepth(v));
+			curX = _targetRegin.left + unit * j;
+			for (size_t AAi = 0; AAi < _AADepth; AAi++)
+			{
+				v.y += AAi * AAunit;
+				v.x = curX;
+				for (size_t AAj = 0; AAj < _AADepth; AAj++)
+				{
+					v.x += AAj * AAunit;
+					c += HSL2RGBf(getDepth(v));
+				}
+			}
+			c /= aafactor;
+			pixelColours.at(iter) = c;
 			iter++;
+			v.y = curY;
+			c = { 0, 0, 0, 0};
 		}
 	}
 	auto end = std::chrono::steady_clock::now();
@@ -340,5 +357,6 @@ void Game::ResizeViewport()
 		_targetRegin.top += (center - offset) * unit;
 		_targetRegin.bottom -= (h - (center + offset)) * unit;
 	}
+	_selectBox = { 0, 0, 0, 0 };
 }
 

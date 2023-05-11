@@ -41,6 +41,7 @@ private:
 	int _zoomRatioY = 0;
 	float _pixelScale = 0;
 	int _bailOut = 50;
+	int _AADepth = 4;
 	DirectX::SimpleMath::Vector2 _cameraCoord = DirectX::SimpleMath::Vector2(0, 0);
 	int speed = 5;
 	D2D1_RECT_F _selectBox;
