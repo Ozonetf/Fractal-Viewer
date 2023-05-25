@@ -51,16 +51,16 @@ public:
 	void CopyScreenToBitmap(std::vector<DirectX::SimpleMath::Color>* src);
 	void DrawSavedBitmap();
 
-	RECT GetWinRect() { return _windowRect; };
-	long GetWinHeight() { return (_windowRect.bottom * m_dpi / 96); }
-	long GetWinWidth() { return (_windowRect.right * m_dpi / 96); }
+	RECT GetWinRect() { return m_windowRect; };
+	long GetWinHeight() { return (m_windowRect.bottom * m_dpi / 96); }
+	long GetWinWidth() { return (m_windowRect.right * m_dpi / 96); }
 
 
 private:
 	int m_dpi;
 	void CreateWinSizeDepedentResources();
-	HWND _windowHandle;
-	RECT _windowRect;
+	HWND m_windowHandle;
+	RECT m_windowRect;
 	// Inherited via IDeviceNotify
 	virtual void OnDeviceLost() override;
 	virtual void OnDeviceRestored() override;

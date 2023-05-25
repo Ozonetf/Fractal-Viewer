@@ -41,10 +41,10 @@ void Graphics::init(HWND windowhandle, long width, long height)
 
 void Graphics::SetWindow(HWND windowhandle, long width, long height)
 {
-	_windowHandle = windowhandle;
-	_windowRect.top, _windowRect.left = 0;
-	_windowRect.right = width;
-	_windowRect.bottom = height;
+	m_windowHandle = windowhandle;
+	m_windowRect.top, m_windowRect.left = 0;
+	m_windowRect.right = width;
+	m_windowRect.bottom = height;
 }
 
 void Graphics::ClearScreen(float r, float g, float b)
@@ -112,9 +112,9 @@ void Graphics::FillRect(D2D1_RECT_F r, D2D1::ColorF colour)
 void Graphics::Resize(long width, long height)
 {
 	if (!_deviceResource->WindowSizeChanged(width, height))	return;
-	_windowRect.left, _windowRect.top = 0;
-	_windowRect.right = width;
-	_windowRect.bottom = height;
+	m_windowRect.left, m_windowRect.top = 0;
+	m_windowRect.right = width;
+	m_windowRect.bottom = height;
 	CreateWinSizeDepedentResources();
 }
 
@@ -122,14 +122,10 @@ void Graphics::CopyScreenToBitmap(std::vector<DirectX::SimpleMath::Color>* src)
 {
 	UINT cbBufferSize = 0, stride = 0, foo;
 	BYTE* pv = NULL;
-	WICRect rcLock = { 0, 0, _windowRect.right, _windowRect.bottom };
+	WICRect rcLock = { 0, 0, m_windowRect.right, m_windowRect.bottom };
 	_WICBitmap->Lock(&rcLock, WICBitmapLockWrite, _WICBitmapLock.GetAddressOf());
 	_WICBitmapLock->GetDataPointer(&cbBufferSize, &pv);
 	_WICBitmapLock->GetStride(&stride);
-	for (size_t i = 0; i < cbBufferSize; i++)
-	{
-
-	}
 	int i = -1;
 	DirectX::PackedVector::XMCOLOR xm;
 	for (auto iter : *src)
@@ -140,13 +136,6 @@ void Graphics::CopyScreenToBitmap(std::vector<DirectX::SimpleMath::Color>* src)
 		pv[i++] = xm.r;		//R
 		pv[i++] = xm.a;		//A
 	}
-	//for (size_t i = 0; i < bBufferSize; i+=4)
-	//{
-	//	pv[i] = 0;		//B
-	//	pv[i+1] = 0;	//G
-	//	pv[i+2] = 200;	//R
-	//	pv[i+3] = 0;	//A
-	//}
 	_WICBitmapLock.Reset();	//release the lock after using
 	DX::ThrowIfFailed(
 		_deviceResource->GetD2DContext()->CreateBitmapFromWicBitmap(_WICBitmap.Get(), _myBitMap.GetAddressOf())
@@ -160,9 +149,9 @@ void Graphics::DrawSavedBitmap()
 
 void Graphics::CreateWinSizeDepedentResources()
 {
-	m_dpi = GetDpiForWindow(_windowHandle);
+	m_dpi = GetDpiForWindow(m_windowHandle);
 	_deviceResource->CreateWindowSizeDependentResources();
-	D2D1_SIZE_U WinSize = { static_cast<UINT32>(_windowRect.right * m_dpi / 96.0f), static_cast<UINT32>(_windowRect.bottom * m_dpi / 96.0f) };
+	D2D1_SIZE_U WinSize = { static_cast<UINT32>(m_windowRect.right * m_dpi / 96.0f), static_cast<UINT32>(m_windowRect.bottom * m_dpi / 96.0f) };
 	D2D1_BITMAP_PROPERTIES1 bitmapProperties;
 	bitmapProperties.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	bitmapProperties.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
