@@ -31,6 +31,11 @@ void Game::Init(HWND windowhandle, long width, long height)
 		2 * ((float)width / (float)height),
 		2 
 	};
+	_threadPool.resize(std::thread::hardware_concurrency());
+	//for (auto &t : _threadPool)
+	//{
+	//	t.join();
+	//}
 }
 
 void Game::Tick()
@@ -75,6 +80,17 @@ void Game::Update()
 	yy = float(height) / (bottom - top);
 
 	_pixelScale = float(width) / float(right - left);
+	if (reCalc)
+	{
+		if (useMultiThread)
+		{
+			CalculateFractalMT();
+		}
+		else
+		{
+			CalculateFractal();
+		}
+	}
 }
 
 void Game::Render()
@@ -85,10 +101,7 @@ void Game::Render()
 	//rect's right and bottom are not insclusive in fillrect, workaround to avoid gap
 	//in cells when zoomed in
 	float zoom = (_pixelScale == 1 ? 1 : _pixelScale+1);
-	if (reCalc) 
-	{
-		CalculateFractal();
-	}
+
 	_graphics->DrawRect(_selectBox, D2D1::ColorF::White);
 	//_graphics->DrawCircle(circle_x, _graphics->GetWinHeight()/2, 30, 1, 1, 1, 1);
 	_graphics->DrawSavedBitmap();
@@ -119,6 +132,17 @@ void Game::ProcessInputs()
 		2
 		};
 		reCalc = true;
+	}
+	if (_kTraker.pressed.M)
+	{
+		useMultiThread = !useMultiThread;
+		//_targetRegin = {
+		//-2 * ((float)_graphics->GetWinWidth() / (float)_graphics->GetWinHeight()),
+		//-2,
+		//2 * ((float)_graphics->GetWinWidth() / (float)_graphics->GetWinHeight()),
+		//2
+		//};
+		//CalculateFractalMT();
 	}
 	if (_kTraker.pressed.Right)
 	{
@@ -275,8 +299,6 @@ void Game::CalculateFractal()
 	h = (float)_graphics->GetWinHeight();
 	float unit = (_targetRegin.right - _targetRegin.left) / (float)w;
 	float AAunit = unit / (float)_AADepth;
-	float halfWidth = w / 2.0f;
-	float halfHeight = h / 2.0f;
 	DirectX::SimpleMath::Vector2 v;
 	auto start = std::chrono::steady_clock::now();
 	DirectX::SimpleMath::Color c, aafactor;
@@ -307,12 +329,47 @@ void Game::CalculateFractal()
 	}
 	auto end = std::chrono::steady_clock::now();
 	auto total = end - start;
-	PRINT_DEBUG("%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
+	PRINT_DEBUG("singlethread calc time:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
 	start = std::chrono::steady_clock::now();
 	_graphics->CopyScreenToBitmap(&pixelColours);
 	end = std::chrono::steady_clock::now();
 	total = end - start;
 	PRINT_DEBUG("copy:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
+}
+
+void Game::CalculateFractalMT()
+{
+	auto start = std::chrono::steady_clock::now();
+	PatchDesc patchDesc = {};
+	patchDesc.w = (float)_graphics->GetWinWidth();
+	patchDesc.unit = (_targetRegin.right - _targetRegin.left) / patchDesc.w;
+	patchDesc.AAdepth = _AADepth;
+	patchDesc.bailOut = _bailOut;
+	int threadCount = _threadPool.size();
+	patchDesc.frameHeight = _graphics->GetWinHeight();
+	int patchHeight = _graphics->GetWinHeight() / threadCount;
+	patchDesc.yEnd = 0;
+	for (size_t i = 0; i < threadCount; i++)
+	{
+		patchDesc.iter = i * patchDesc.w * patchHeight;
+		patchDesc.id = i;
+		patchDesc.yStart = patchHeight * i;
+		patchDesc.yEnd += patchHeight;
+		if (i == threadCount-1)	//last job handles remainding pixels
+		{
+			//patchDesc.h += _graphics->GetWinHeight() % threadCount;
+		}
+		_threadPool[i] = std::thread(&Game::GetDepthInRange, this, patchDesc);
+
+	}
+	for (auto& t : _threadPool)
+	{
+		t.join();
+	}
+	auto end = std::chrono::steady_clock::now();
+	auto total = end - start;
+	PRINT_DEBUG("multithreaded calc time:	%d	milli\n", std::chrono::duration_cast<std::chrono::milliseconds>(total).count());
+	_graphics->CopyScreenToBitmap(&pixelColours);
 }
 
 void Game::ResizeViewport()
@@ -360,3 +417,41 @@ void Game::ResizeViewport()
 	_selectBox = { 0, 0, 0, 0 };
 }
 
+void Game::GetDepthInRange(PatchDesc d)
+{
+	int iter = d.iter;
+	int bcount = d.w * d.yEnd;
+	DirectX::SimpleMath::Vector2 v;
+	float curY, curX, patchsize = (float)d.AAdepth * (float)d.AAdepth;	
+	float unit = (_targetRegin.right - _targetRegin.left) / (float)d.w;
+	float AAunit = unit / (float)d.AAdepth;
+	DirectX::SimpleMath::Color c, aafactor;
+	aafactor = { patchsize, patchsize , patchsize };
+	for (size_t y = d.yStart; y < d.yEnd; y++)
+	{
+		v.y = curY = _targetRegin.top + y * unit;
+		for (size_t x = 0; x < d.w; x++)
+		{
+			curX = _targetRegin.left + unit * x;
+			for (size_t AAi = 0; AAi < d.AAdepth; AAi++)
+			{
+				v.y += AAi * AAunit;
+				v.x = curX;
+				for (size_t AAj = 0; AAj < d.AAdepth; AAj++)
+				{
+					v.x += AAj * AAunit;
+					c += HSL2RGBf(getDepth(v));
+				}
+			}
+			c /= aafactor;
+			if (iter >= pixelColours.size())
+			{
+				iter --;
+			}
+			pixelColours.at(iter) = c;
+			iter++;
+			v.y = curY;
+			c = { 0, 0, 0, 0 };
+		}
+	}
+}
